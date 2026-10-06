@@ -1,0 +1,69 @@
+---
+- hosts: microservices
+  gather_facts: no
+  tasks:
+    - name: Bootstrap python3 en el contenedor
+      raw: apt-get update && apt-get install -y python3 apt-utils curl ca-certificates
+
+    - name: Bloquear autostart de servicios (no hay systemd)
+      copy:
+        content: |
+          #!/bin/sh
+          exit 101
+        dest: /usr/sbin/policy-rc.d
+        mode: '0755'
+
+    - name: Instalar Docker
+      apt:
+        name: docker.io
+        update_cache: yes
+
+    - name: Instalar SDK de Docker para Python (lo necesita el módulo docker_container)
+      shell: python3 -m pip install docker || (apt-get install -y python3-pip && python3 -m pip install docker)
+
+    - name: Esperar a que el watcher loop levante dockerd
+      wait_for:
+        path: /var/run/docker.sock
+        timeout: 60
+
+    - name: users-service instancia 1
+      docker_container:
+        name: users-1
+        image: rrolface/users-service:v1
+        ports: "5002:3001"
+        restart_policy: always
+
+    - name: users-service instancia 2
+      docker_container:
+        name: users-2
+        image: rrolface/users-service:v1
+        ports: "5012:3001"
+        restart_policy: always
+
+    - name: products-service instancia 1
+      docker_container:
+        name: products-1
+        image: rrolface/products-service:v1
+        ports: "5003:3002"
+        restart_policy: always
+
+    - name: products-service instancia 2
+      docker_container:
+        name: products-2
+        image: rrolface/products-service:v1
+        ports: "5013:3002"
+        restart_policy: always
+
+    - name: orders-service instancia 1
+      docker_container:
+        name: orders-1
+        image: rrolface/orders-service:v1
+        ports: "5004:3003"
+        restart_policy: always
+
+    - name: orders-service instancia 2
+      docker_container:
+        name: orders-2
+        image: rrolface/orders-service:v1
+        ports: "5014:3003"
+        restart_policy: always

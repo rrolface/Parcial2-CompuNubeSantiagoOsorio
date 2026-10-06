@@ -1,0 +1,27 @@
+---
+- hosts: haproxy
+  gather_facts: no
+  tasks:
+    - name: Bootstrap python3 en el contenedor
+      raw: apt-get update && apt-get install -y python3 apt-utils
+
+    - name: Bloquear autostart de servicios (no hay systemd)
+      copy:
+        content: |
+          #!/bin/sh
+          exit 101
+        dest: /usr/sbin/policy-rc.d
+        mode: '0755'
+
+    - name: Instalar HAProxy
+      apt:
+        name: haproxy
+        update_cache: yes
+
+    - name: Copiar configuración de HAProxy
+      copy:
+        src: haproxy.cfg
+        dest: /etc/haproxy/haproxy.cfg
+
+    - name: Arrancar/recargar HAProxy con la nueva config
+      shell: pkill haproxy || true; sleep 1; haproxy -f /etc/haproxy/haproxy.cfg -D
